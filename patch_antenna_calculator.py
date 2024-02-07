@@ -46,6 +46,8 @@ class patch_antenna():
         self.feed_line_w = None # width of the 50 ohm feed line in mm
         self.feed_line_l = None # inset length of the 50 ohm feed line in mm
         self.feed_line_clearance = None # Inset feed clearance in mm
+        self.ground_plane_length = None # Minimum ground plane length in mm
+        self.ground_plane_width = None # Minimum ground plane width in mm
 
     def calculate_antenna_params(self):
         """
@@ -72,6 +74,20 @@ class patch_antenna():
 
         # Calculate the inset feed clearance:
         self.calculate_inset_feed_clearance()
+
+        self.calculate_minimum_ground_plane()
+
+        params = {
+            "Frequency_Hz": self.f,
+            "Patch_width_mm" : self.w,
+            "Patch_length_mm" : self.l,
+            "Inset_feed_line_width_mm": self.feed_line_w,
+            "Inset_feed_line_length_mm": self.feed_line_l,
+            "Inset_feed_line_clearance_mm": self.feed_line_clearance,
+            "Ground_plane_length_mm" : self.ground_plane_length,
+            "Ground_plane_width_mm" : self.ground_plane_width,
+        }
+        return params
 
     def print_antenna_params(self):
         """
@@ -142,6 +158,14 @@ class patch_antenna():
         elif self.feed_line_w < 5:
             self.feed_line_clearance = self.feed_line_w/1.75
 
+    def calculate_minimum_ground_plane(self):
+        """
+        Function to calculate the minimum ground plane.
+        Based on https://www.ss-pub.org/wp-content/uploads/2015/03/3-BCR-E20140906-02.pdf
+        eq. 5 and 6.
+        """
+        self.ground_plane_length = 6*self.substrate.height + self.l
+        self.ground_plane_width = 6*self.substrate.height + self.w
 
     def calculate_epsilon_eff(self, width):
         """
