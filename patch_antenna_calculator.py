@@ -24,8 +24,8 @@ class substrate():
         if e_r <= 0:
             raise ValueError("substrate parameter e_r (direlectric constant) cannot be 0 or less")
         self.e_r = e_r
-        self.height = float(height_mm)
-        self.cu_thickness = float(cu_thickness_um)
+        self.height = float(height_mm/1000)
+        self.cu_thickness = float(cu_thickness_um/1e6)
     
     def __repr__(self):
         s = "Two layer substrate with height:"+str(self.height)+" mm, copper thickness:"+str(self.cu_thickness)+" um and e_r:"+str(self.e_r)
@@ -93,18 +93,18 @@ class patch_antenna():
         """
         Function to print the antenna calculated antenna parameters
         """
-        print("Length: {} mm".format(round(self.l,2)))
-        print("Width: {} mm".format(round(self.w,2)))
-        print("50 ohm feed line width: {} mm".format(round(self.feed_line_w, 2)))
-        print("Inset feed length: {} mm".format(round(self.feed_line_l,2)))
-        print("Inset feed clearance: {} mm".format(round(self.feed_line_clearance,2)))
+        print("Length: {} mm".format(round(self.l*1000,2)))
+        print("Width: {} mm".format(round(self.w*1000,2)))
+        print("50 ohm feed line width: {} mm".format(round(self.feed_line_w*1000, 2)))
+        print("Inset feed length: {} mm".format(round(self.feed_line_l*1000,2)))
+        print("Inset feed clearance: {} mm".format(round(self.feed_line_clearance*1000,2)))
 
     def calculate_patch_width(self):
         """
         Funciton to calculate the width of the patch. 
         Based off https://www.pasternack.com/t-calculator-microstrip-ant.aspx
         """
-        self.w = self.c/(2*self.f*sqrt((self.substrate.e_r + 1)/2))
+        self.w = self.c/(2*self.f*sqrt((self.substrate.e_r + 1)/2)) # in meters
 
     def calculate_patch_length(self):
         """
@@ -113,7 +113,6 @@ class patch_antenna():
         """
         # We need the effective dielectric constant for the width of the patch
         e_eff = self.calculate_epsilon_eff(self.w)
-        print("e_eff: {}".format(e_eff))
         a = (e_eff+0.3)*(self.w/self.substrate.height+0.264)
         b = (e_eff-0.258)*(self.w/self.substrate.height+0.8)
         self.l = (self.c/(2*self.f*sqrt(e_eff)) - 0.824*self.substrate.height*(a/b))
@@ -123,9 +122,9 @@ class patch_antenna():
         Calculate the 50 ohm feed line. 
         This is based off https://www.everythingrf.com/rf-calculators/microstrip-width-calculator
         """
-        a = 7.48*self.substrate.height
-        b = exp(impedance*sqrt(self.substrate.e_r+1.41)/87)
-        return a/b-1.25*self.substrate.cu_thickness/1000
+        a = 7.48*self.substrate.height # in meters
+        b = exp(impedance*sqrt(self.substrate.e_r+1.41)/87) # In meters
+        return a/b-1.25*self.substrate.cu_thickness
 
     def calculate_inset_feed_length(self, impedance):
         """
@@ -181,6 +180,84 @@ class patch_antenna():
         else:
             e_eff = ((self.substrate.e_r+1)/2) + ((self.substrate.e_r-1)/2)*pow((1+12*self.substrate.height/width), -0.5)
         return e_eff
+    
+    def export_coordinates(self, unit, starting_coord = (0,0)):
+        """
+        Function that exports coordinates as a list of 
+        tuples (x,y). 
+
+        y
+        ^
+        |
+        +----> x
+
+        :param units: <float/int> Units in which to export the cooordinates, 1e0 is meters, making 1e-3 mm. 
+        :param starting_coord: <tuple of float> Coordinates of the middle of the inset feed line. 
+        :return: <list of tuples> List of coordinates in tuple (x,y)
+        """
+        mm_to_unit = 1e-3/unit
+        coords = []
+        # Append the starting coordinate:
+        x,y = starting_coord
+        coords.append((x,y))
+        # Go left half of the distance of the inset feed line
+        x += (-self.feed_line_w/2)*mm_to_unit
+        y += 0
+        coords.append((x,y))
+        # Continue up the feedline, clockwise:
+        x += 0
+        y += (self.feed_line_l/2)*mm_to_unit
+        coords.append((x,y))
+        # Continue to the left, adding the clearance
+        x += -self.feed_line_clearance*mm_to_unit
+        y += 0
+        coords.append((x,y))
+        # Go down from the inset clearance
+        x += 0
+        y += (-self.feed_line_l/2)*mm_to_unit
+        coords.append((x,y))
+        # Now go left until the bottom left corner:
+        x += -(self.w/2 -self.feed_line_clearance-self.feed_line_w/2)*mm_to_unit
+        y += 0
+        coords.append((x,y))
+        # Go to the top left corner
+        x += 0
+        y += self.l*mm_to_unit
+        coords.append((x,y))
+        # Go to the top right corner
+        x += self.w*mm_to_unit
+        y += 0
+        coords.append((x,y))
+        # Go to the bottom right corner
+        x += 0
+        y += -self.l*mm_to_unit
+        coords.append((x,y))
+        # back to where the inset feed clearance starts:
+        x += -(self.w/2 -self.feed_line_clearance-self.feed_line_w/2)*mm_to_unit
+        y += 0
+        coords.append((x,y))
+        # Up in the clearance
+        x += 0
+        y += (self.feed_line_l/2)*mm_to_unit
+        coords.append((x,y))
+        # Continue to the left, adding the clearance
+        x += -self.feed_line_clearance*mm_to_unit
+        y += 0
+        coords.append((x,y))
+        # Go down towards the bottom right corner of the inset feed trace
+        x += 0
+        y += (-self.feed_line_l/2)*mm_to_unit
+        coords.append((x,y))
+        # Go left half of the distance of the inset feed line
+        x += (-self.feed_line_w/2)*mm_to_unit
+        y += 0
+        coords.append((x,y))
+        
+        return coords
+        
+
+
+        
 
 
 def main():
